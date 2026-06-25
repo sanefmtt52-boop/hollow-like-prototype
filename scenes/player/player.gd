@@ -24,6 +24,12 @@ extends CharacterBody2D
 @export var attack_cooldown: float = 0.25
 @export var pogo_velocity: float = -380.0  # отскок вверх при ударе вниз (pogo)
 
+# --- Заклинание (Vengeful Spirit) ---
+# preload — заранее загружаем сцену снаряда в память (один раз при запуске), чтобы
+# при касте только делать её копии, а не читать файл с диска каждый раз.
+const SPELL_SCENE := preload("res://scenes/objects/spell_projectile.tscn")
+@export var spell_spawn_offset: float = 40.0  # насколько впереди игрока рождается снаряд
+
 # --- Лечение (Focus) ---
 @export var focus_time: float = 0.9  # сколько держать кнопку, чтобы вылечить 1 маску
 
@@ -85,6 +91,7 @@ func _physics_process(delta: float) -> void:
 	_handle_jump(delta)
 	_try_start_dash()
 	_try_attack()
+	_try_cast()             # заклинание (снаряд за soul)
 	_check_enemy_contact()  # касание врага -> урон (если не неуязвимы)
 
 	move_and_slide()
@@ -97,7 +104,8 @@ func _apply_gravity(delta: float) -> void:
 
 func _handle_horizontal() -> void:
 	var direction := Input.get_axis("move_left", "move_right")
-	velocity.x = direction * speed
+	# Скорость умножаем на бонус от чармов (1.0 = без чармов; «Прыткие ноги» дают 1.25).
+	velocity.x = direction * speed * GameState.move_speed_mult
 	if direction != 0:
 		_facing = signi(int(direction))
 		$Visual.scale.x = _facing  # зеркалим спрайт по направлению взгляда
@@ -140,7 +148,8 @@ func _handle_focus(delta: float) -> void:
 	if channeling:
 		velocity.x = 0.0
 		_focus_timer += delta
-		if _focus_timer >= focus_time:
+		# Чарм «Быстрый фокус» уменьшает нужное время (focus_time_mult < 1.0 = быстрее).
+		if _focus_timer >= focus_time * GameState.focus_time_mult:
 			_focus_timer = 0.0
 			if GameState.spend_soul_for_cast():
 				GameState.heal(1)
@@ -190,6 +199,9 @@ func _get_attack_direction() -> String:
 func _do_attack(dir: String) -> void:
 	var hitbox: Area2D = $NailHitbox
 
+	# Сбрасываем растяжение хитбокса (на случай прошлого бокового удара).
+	hitbox.scale = Vector2.ONE
+
 	# Ставим хитбокс в сторону удара.
 	match dir:
 		"up":
@@ -198,6 +210,9 @@ func _do_attack(dir: String) -> void:
 			hitbox.position = Vector2(0, 50)
 		_:
 			hitbox.position = Vector2(_facing * 40, 0)
+			# Чарм «Длинный гвоздь» растягивает боковой удар (nail_range_mult > 1.0).
+			# Масштаб Area2D растягивает и форму коллизии, и белый «взмах».
+			hitbox.scale.x = GameState.nail_range_mult
 
 	_show_swing()
 
@@ -210,13 +225,15 @@ func _do_attack(dir: String) -> void:
 	var hit_enemy := false
 	for body in hitbox.get_overlapping_bodies():
 		if body.is_in_group("enemy"):
-			body.take_damage(nail_damage)
+			# Урон = базовый + бонус от чармов («Тяжёлый гвоздь»).
+			body.take_damage(nail_damage + GameState.nail_damage_bonus)
 			hit_enemy = true
 
 	hitbox.monitoring = false
 
 	if hit_enemy:
-		GameState.add_soul(GameState.SOUL_PER_HIT)
+		# Soul за удар = базовый + бонус от чармов («Собиратель душ»).
+		GameState.add_soul(GameState.SOUL_PER_HIT + GameState.soul_per_hit_bonus)
 		# Pogo: удар вниз в воздухе по врагу отталкивает игрока вверх.
 		if dir == "down" and not is_on_floor():
 			velocity.y = pogo_velocity
@@ -228,6 +245,27 @@ func _show_swing() -> void:
 	swing.visible = true
 	await get_tree().create_timer(0.1).timeout
 	swing.visible = false
+
+
+# --- Заклинание (Vengeful Spirit) ---
+
+func _try_cast() -> void:
+	# Заклинание ещё не открыто? (флаг в GameState, по умолчанию включён).
+	if not GameState.has_spell:
+		return
+	# Нажали клавишу заклинания И хватило soul (spend_soul_for_cast списывает 33 и
+	# возвращает true; если soul мало — вернёт false и НЕ спишет, благодаря "and"
+	# трата вызывается только при нажатии).
+	if Input.is_action_just_pressed("cast") and GameState.spend_soul_for_cast():
+		# "Инстанцируем" сцену снаряда — создаём её живую копию в памяти.
+		var spell := SPELL_SCENE.instantiate()
+		spell.direction = _facing  # летит туда, куда смотрим (читается в его _ready)
+		# Добавляем снаряд в РОДИТЕЛЯ игрока (уровень), а не в самого игрока —
+		# иначе он двигался бы вместе с нами. Теперь он живёт независимо.
+		get_parent().add_child(spell)
+		# Позицию задаём ПОСЛЕ добавления в дерево (тогда global_position работает верно):
+		# чуть впереди игрока, на уровне центра тела.
+		spell.global_position = global_position + Vector2(_facing * spell_spawn_offset, 0.0)
 
 
 # --- Получение урона ---

@@ -24,7 +24,7 @@ offset_left = 20.0
 offset_top = 600.0
 offset_right = 900.0
 offset_bottom = 640.0
-text = "Движение: A/D или стрелки   Прыжок: Space   Атака: J   Даш: K   Лечение: L   Действие: F"
+text = "Движение: A/D   Прыжок: Space   Атака: J   Даш: K   Лечение: L   Заклинание: I   Чармы: C   Действие: F"
 
 [node name="MessageLabel" type="Label" parent="."]
 offset_left = 0.0

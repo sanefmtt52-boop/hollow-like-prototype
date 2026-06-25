@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://788ne8ketk82"]
+
+[ext_resource type="Script" path="res://scenes/objects/spell_projectile.gd" id="1_spell"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_spell"]
+size = Vector2(36, 20)
+
+[node name="SpellProjectile" type="Area2D"]
+collision_layer = 0
+collision_mask = 4
+script = ExtResource("1_spell")
+
+[node name="Polygon2D" type="Polygon2D" parent="."]
+color = Color(0.85, 0.4, 1, 0.85)
+polygon = PackedVector2Array(-18, 0, 0, -11, 18, 0, 0, 11)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_spell")

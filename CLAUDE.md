@@ -68,8 +68,16 @@ assets/                    sprites/audio/fonts (пока пусто)
 - [~] **M5** — сохранение на диск (`user://save.json`, JSON). Пишется на скамейке (`save_game`),
   читается при старте (`GameState._ready -> load_game`). Игрок появляется у сохранённой скамейки.
   `GameState.delete_save()` — сброс (новая игра). **Код готов, ждём проверку пользователем.**
+- [x] **M6** — заклинание «Vengeful Spirit» (клавиша I): снаряд `spell_projectile` за 33 soul,
+  летит в сторону взгляда, бьёт первого врага (`take_damage(15)`). Флаг `GameState.has_spell`
+  (по умолчанию true). **Проверено пользователем: работает.**
+- [x] **M7** — чармы (амулеты). Тип-ресурс `Charm` (`scripts/charm.gd`), каталог из 5 чармов
+  в коде (`GameState._build_charm_catalog`), хранилище (notch_capacity=3, owned/equipped),
+  применение бонусов в `player.gd`, экран экипировки `charm_menu` (клавиша C, пауза), пикапы
+  `charm_pickup` в уровне, сохранение в JSON. **Проверено пользователем: работает.**
 
-ПРОТОТИП ПОЛНОСТЬЮ СОБРАН (M1-M5). Дальше — расширение: ассеты, спеллы, charms, новые уровни/враги.
+ПРОТОТИП СОБРАН (M1-M5) + добавлены спелл (M6) и чармы (M7). Дальше — расширение: ассеты,
+второй спелл/враг/уровень, полировка.
 
 ## Дорожная карта (следующие шаги, ещё не начаты)
 Приоритет не задан — спросить пользователя, с чего начать.
@@ -80,8 +88,9 @@ assets/                    sprites/audio/fonts (пока пусто)
 2. **Контент.** Второй тип врага (напр. летающий/прыгающий), новые платформенные секции,
    второй уровень + переход между сценами (зоны-двери `Area2D` → `change_scene_to_file`,
    состояние переносит `GameState`).
-3. **Боевая глубина.** Charms: ресурс-данные (notches, эффект) + экран экипировки + применение
-   модификаторов в `player.gd`/`GameState`. Спелл Vengeful Spirit: трата soul (33) → снаряд.
+3. ~~**Боевая глубина.** Charms + спелл Vengeful Spirit.~~ **СДЕЛАНО (M6–M7), ждёт проверки.**
+   Осталось по желанию: второй/третий спелл (вверх/вниз), рост числа ячеек (notch_capacity),
+   привязка меню чармов к скамейке вместо клавиши C, больше чармов.
 4. **Полировка.** Звук (решить проблему с аудиодрайвером у пользователя), частицы при ударе,
    меню/пауза/экран смерти, кнопка «Новая игра» (`GameState.delete_save()`).
 
@@ -93,7 +102,8 @@ assets/                    sprites/audio/fonts (пока пусто)
 
 ## Управление
 A/D или стрелки — движение · W/S или ↑/↓ — прицел удара · Space — прыжок ·
-J — атака · K — даш · L — лечение (Focus) · F — действие (скамейка/пикап).
+J — атака · K — даш · L — лечение (Focus) · I — заклинание (Vengeful Spirit) ·
+C — меню чармов · F — действие (скамейка/пикап).
 
 ## Текущее состояние кода (детали, которые легко забыть)
 - `player.gd`: даш написан, но заблокирован (`GameState.has_dash=false`) — включится в M4.
@@ -111,12 +121,23 @@ J — атака · K — даш · L — лечение (Focus) · F — дей
   В `_ready` сам удаляется, если способность уже открыта (иначе после загрузки сейва пикап лежит повторно).
   Этот паттерн (пикап исчезает, если эффект уже применён) повторять для будущих подбираемых предметов.
 - Сообщения: `GameState.show_message(text)` → сигнал `message` → HUD `MessageLabel` (исчезает через 2.5с).
+- Спелл (M6): `player._try_cast()` по клавише `cast` (I), если `has_spell` и хватило 33 soul
+  (`spend_soul_for_cast`), `instantiate` сцену `spell_projectile` в `get_parent()` (уровень),
+  задаёт `direction=_facing`. Снаряд — Area2D (layer 0 / mask 4), летит, `body_entered` → урон врагу.
+- Чармы (M7): `scripts/charm.gd` (`class_name Charm extends Resource`, поля-эффекты). Каталог в коде
+  (`GameState._build_charm_catalog`, 5 чармов). Хранилище: `notch_capacity`, `owned_charm_ids`,
+  `equipped_charm_ids`; функции `equip_charm/unequip_charm/toggle_charm/can_equip`, сигнал `charms_changed`.
+  Бонусы суммируются в `_recalc_charm_bonuses` (nail_damage_bonus, soul_per_hit_bonus, move_speed_mult,
+  focus_time_mult, nail_range_mult), `player.gd` читает их в точке применения. Меню `scenes/ui/charm_menu`
+  (CanvasLayer, `process_mode=Always`, клавиша C, ставит `get_tree().paused`). Пикапы `charm_pickup`
+  (поле `charm_id`, паттерн «исчезает, если уже получен»). Всё сохраняется в JSON.
 - Падение: `player._check_fall()` — если `global_position.y > fall_limit (800)` → `_respawn_at_savepoint()`
   (общий метод, его же зовёт `_on_player_died`, но смерть ещё и полностью лечит).
 - Уровень `level_01`: пол разделён на FloorLeft (x -100..1000) и FloorRight (1300..1600), пропасть 300px.
   Пикап рывка на FloorLeft у края (960,430), за пропастью «ЦЕЛЬ». Даш: `dash_time=0.24`.
 - `game_state.gd`: есть `add_soul`, `spend_soul_for_cast`, `can_cast`, `take_damage`, `heal`,
-  `restore_full_health`, `set_respawn`. `save_game`/`load_game` — заглушки до M5.
+  `restore_full_health`, `set_respawn` + функции чармов (см. выше). `save_game`/`load_game` —
+  рабочие (JSON), сохраняют HP, soul, has_dash, has_spell, точку респауна и чармы.
 - Лечение Focus: держать L на земле, тратит 33 soul, лечит 1 маску за `focus_time` (0.9с).
   Видно только если HP не полное (полноценно проверится в M3, когда враги наносят урон).
 - Версия движка в `project.godot` управляется самим редактором Godot — не перетирать вручную.

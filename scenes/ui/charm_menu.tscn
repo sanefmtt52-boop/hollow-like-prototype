@@ -1,0 +1,46 @@
+[gd_scene format=3 uid="uid://crh8re2inpmue"]
+
+[ext_resource type="Script" path="res://scenes/ui/charm_menu.gd" id="1_cm"]
+
+[node name="CharmMenu" type="CanvasLayer"]
+layer = 10
+process_mode = 3
+script = ExtResource("1_cm")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.7)
+
+[node name="Title" type="Label" parent="Dim"]
+offset_left = 0.0
+offset_top = 40.0
+offset_right = 1152.0
+offset_bottom = 76.0
+horizontal_alignment = 1
+text = "ЧАРМЫ — экипировка"
+
+[node name="Notches" type="Label" parent="Dim"]
+offset_left = 0.0
+offset_top = 84.0
+offset_right = 1152.0
+offset_bottom = 112.0
+horizontal_alignment = 1
+text = "Ячейки: 0 / 3 занято"
+
+[node name="List" type="VBoxContainer" parent="Dim"]
+offset_left = 200.0
+offset_top = 160.0
+offset_right = 952.0
+offset_bottom = 560.0
+
+[node name="Help" type="Label" parent="Dim"]
+offset_left = 0.0
+offset_top = 590.0
+offset_right = 1152.0
+offset_bottom = 626.0
+horizontal_alignment = 1
+text = "↑/↓ — выбор    Enter — надеть/снять    C или Esc — закрыть"
