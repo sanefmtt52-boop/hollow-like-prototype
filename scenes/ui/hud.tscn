@@ -25,3 +25,11 @@ offset_top = 600.0
 offset_right = 900.0
 offset_bottom = 640.0
 text = "Движение: A/D или стрелки   Прыжок: Space   Атака: J   Даш: K   Лечение: L   Действие: F"
+
+[node name="MessageLabel" type="Label" parent="."]
+offset_left = 0.0
+offset_top = 130.0
+offset_right = 1152.0
+offset_bottom = 170.0
+horizontal_alignment = 1
+text = ""

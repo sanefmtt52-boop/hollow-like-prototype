@@ -16,6 +16,8 @@ extends Node
 signal health_changed(current: int, maximum: int)
 signal soul_changed(current: int, maximum: int)
 signal player_died
+# Просьба показать короткое сообщение на экране (ловит HUD).
+signal message(text: String)
 
 # --- Здоровье (маски) ---
 const MAX_HEALTH: int = 5
@@ -35,9 +37,16 @@ var respawn_position: Vector2 = Vector2.ZERO
 var has_respawn_point: bool = false
 
 
+# Путь к файлу сохранения. "user://" — это спец-папка Godot для данных игры
+# (на Windows: %APPDATA%\Godot\app_userdata\<имя проекта>\). Туда можно писать.
+const SAVE_PATH: String = "user://save.json"
+
+
 func _ready() -> void:
-	# При старте рассылаем текущие значения, чтобы HUD сразу показал правильные числа.
+	# Сначала пытаемся загрузить сохранение с диска (если оно есть),
+	# затем рассылаем значения, чтобы HUD показал правильные числа.
 	# call_deferred — ждём один кадр, чтобы HUD успел подключиться к сигналам.
+	load_game()
 	call_deferred("_broadcast_initial")
 
 
@@ -93,11 +102,56 @@ func set_respawn(pos: Vector2) -> void:
 	has_respawn_point = true
 
 
-# --- Сохранение на диск (заполним в милстоуне M5) ---
+# --- Сообщения на экране ---
+
+func show_message(text: String) -> void:
+	message.emit(text)
+
+
+# --- Сохранение на диск ---
 
 func save_game() -> void:
-	pass
+	# Собираем состояние в обычный словарь (Vector2 раскладываем на x и y,
+	# потому что JSON не знает про векторы).
+	var data := {
+		"health": health,
+		"soul": soul,
+		"has_dash": has_dash,
+		"has_respawn_point": has_respawn_point,
+		"respawn_x": respawn_position.x,
+		"respawn_y": respawn_position.y,
+	}
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file == null:
+		push_warning("Не удалось открыть файл для сохранения: " + SAVE_PATH)
+		return
+	file.store_string(JSON.stringify(data))
+	file.close()
 
 
 func load_game() -> void:
-	pass
+	if not FileAccess.file_exists(SAVE_PATH):
+		return  # сохранения ещё нет — играем с начала
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		return
+	var text := file.get_as_text()
+	file.close()
+
+	var data: Variant = JSON.parse_string(text)
+	if typeof(data) != TYPE_DICTIONARY:
+		push_warning("Файл сохранения повреждён, игнорирую.")
+		return
+
+	# Читаем значения с подстраховкой (get с дефолтом на случай старого файла).
+	health = int(data.get("health", MAX_HEALTH))
+	soul = int(data.get("soul", 0))
+	has_dash = bool(data.get("has_dash", false))
+	has_respawn_point = bool(data.get("has_respawn_point", false))
+	respawn_position = Vector2(data.get("respawn_x", 0.0), data.get("respawn_y", 0.0))
+
+
+## Удаляет файл сохранения (новая игра). Удобно для отладки.
+func delete_save() -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(SAVE_PATH)

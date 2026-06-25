@@ -22,6 +22,8 @@ func _process(_delta: float) -> void:
 	if _player_in_range and Input.is_action_just_pressed("interact"):
 		GameState.set_respawn(global_position)
 		GameState.restore_full_health()
+		GameState.save_game()  # пишем прогресс на диск
+		GameState.show_message("Игра сохранена")
 		prompt.text = "Сохранено!"
 
 

@@ -30,6 +30,14 @@
 - Графика пока — цветные `Polygon2D` (заглушки). Ассеты прикрутим позже; каждый ассет
   записывать в `docs/CREDITS.md` с лицензией.
 
+## Git / GitHub
+- Репозиторий: **https://github.com/sanefmtt52-boop/hollow-like-prototype** (public), ветка `main`, remote `origin`.
+- Установлены `git` (2.54) и `gh` (2.95), пользователь залогинен в gh (аккаунт `sanefmtt52-boop`).
+- **В PowerShell-вызовах git/gh могут быть не в PATH** — в начале команды обновлять:
+  `$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")`
+- Когда пользователь просит «сохрани на гитхаб» → `git add -A; git commit -m "..."; git push`.
+  Коммит-сообщения на русском. `gh auth login` запускает ТОЛЬКО пользователь (интерактивно).
+
 ## Грабли при ручной правке .tscn (проверять!)
 - **Корневой узел сцены НЕ должен иметь `parent="..."`** (пиши `[node name="X" type="Y"]`).
   Только дочерние узлы получают `parent="."` / `parent="Имя"`. Иначе: "root node ... cannot
@@ -53,11 +61,15 @@ assets/                    sprites/audio/fonts (пока пусто)
 - [x] **M1** — движение, прыжок (coyote time + jump buffer + переменная высота), уровень, камера, HUD, GameState. **Проверено пользователем: работает.**
 - [x] **M2** — бой гвоздём (удар во все стороны, pogo вниз) + Soul + лечение (Focus) + враг-мишень.
   Важно: лечиться при ПОЛНОМ HP нельзя (как в HK), поэтому soul не тратится — это не баг.
-- [~] **M3** — враг-crawler (патруль + разворот у стены/края), контактный урон игроку (knockback +
+- [x] **M3** — враг-crawler (патруль + разворот у стены/края), контактный урон игроку (knockback +
   i-frames с миганием), смерть/респаун у скамейки, скамейка (F — сохранение + полное лечение).
-  **Код готов, ждём проверку пользователем.**
-- [ ] **M4** — способность-ключ даш (открывается пикапом, `GameState.has_dash`), участок-«ворота» в уровне.
-- [ ] **M5** — сохранение на диск (`user://save.json`).
+- [x] **M4** — пикап рывка (`ability_pickup`, ставит `has_dash`), пропасть-«ворота» (gap 300px,
+  без даша не перепрыгнуть), система сообщений на экране, зона падения (возврат к точке сохранения).
+- [~] **M5** — сохранение на диск (`user://save.json`, JSON). Пишется на скамейке (`save_game`),
+  читается при старте (`GameState._ready -> load_game`). Игрок появляется у сохранённой скамейки.
+  `GameState.delete_save()` — сброс (новая игра). **Код готов, ждём проверку пользователем.**
+
+ПРОТОТИП ПОЛНОСТЬЮ СОБРАН (M1-M5). Дальше — расширение: ассеты, спеллы, charms, новые уровни/враги.
 
 ## Управление
 A/D или стрелки — движение · W/S или ↑/↓ — прицел удара · Space — прыжок ·
@@ -75,6 +87,14 @@ J — атака · K — даш · L — лечение (Focus) · F — дей
   i-frames (`_invincible_timer`, мигание через `$Visual.modulate.a`) + откидывание (`_knockback_timer`,
   во время него управление отключено). Смерть → `GameState.player_died` → `_on_player_died` (респаун).
 - `bench.gd` (`scenes/objects/`): Area2D, при `interact` (F) в зоне → `set_respawn` + `restore_full_health`.
+- `ability_pickup.gd` (`scenes/objects/`): Area2D, при касании игрока → `has_dash=true` + `show_message` + `queue_free`.
+  В `_ready` сам удаляется, если способность уже открыта (иначе после загрузки сейва пикап лежит повторно).
+  Этот паттерн (пикап исчезает, если эффект уже применён) повторять для будущих подбираемых предметов.
+- Сообщения: `GameState.show_message(text)` → сигнал `message` → HUD `MessageLabel` (исчезает через 2.5с).
+- Падение: `player._check_fall()` — если `global_position.y > fall_limit (800)` → `_respawn_at_savepoint()`
+  (общий метод, его же зовёт `_on_player_died`, но смерть ещё и полностью лечит).
+- Уровень `level_01`: пол разделён на FloorLeft (x -100..1000) и FloorRight (1300..1600), пропасть 300px.
+  Пикап рывка на FloorLeft у края (960,430), за пропастью «ЦЕЛЬ». Даш: `dash_time=0.24`.
 - `game_state.gd`: есть `add_soul`, `spend_soul_for_cast`, `can_cast`, `take_damage`, `heal`,
   `restore_full_health`, `set_respawn`. `save_game`/`load_game` — заглушки до M5.
 - Лечение Focus: держать L на земле, тратит 33 soul, лечит 1 маску за `focus_time` (0.9с).

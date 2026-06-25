@@ -9,6 +9,7 @@ extends CanvasLayer
 
 @onready var health_label: Label = $HealthLabel
 @onready var soul_label: Label = $SoulLabel
+@onready var message_label: Label = $MessageLabel
 
 
 func _ready() -> void:
@@ -16,10 +17,21 @@ func _ready() -> void:
 	# Когда GameState вызовет health_changed.emit(...), сработает _on_health_changed.
 	GameState.health_changed.connect(_on_health_changed)
 	GameState.soul_changed.connect(_on_soul_changed)
+	GameState.message.connect(_on_message)
 
 	# Показываем актуальные значения сразу при запуске.
 	_on_health_changed(GameState.health, GameState.MAX_HEALTH)
 	_on_soul_changed(GameState.soul, GameState.MAX_SOUL)
+	message_label.text = ""
+
+
+func _on_message(text: String) -> void:
+	# Показываем сообщение и прячем через пару секунд.
+	message_label.text = text
+	await get_tree().create_timer(2.5).timeout
+	# Прячем, только если за это время не пришло новое сообщение.
+	if message_label.text == text:
+		message_label.text = ""
 
 
 func _on_health_changed(current: int, maximum: int) -> void:

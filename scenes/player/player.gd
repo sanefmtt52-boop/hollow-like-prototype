@@ -16,7 +16,7 @@ extends CharacterBody2D
 
 # --- Даш (открывается пикапом в M4; см. GameState.has_dash) ---
 @export var dash_speed: float = 700.0
-@export var dash_time: float = 0.18
+@export var dash_time: float = 0.24
 @export var dash_cooldown: float = 0.5
 
 # --- Бой гвоздём ---
@@ -31,6 +31,9 @@ extends CharacterBody2D
 @export var invincible_time: float = 1.0   # кадры неуязвимости после удара
 @export var knockback_force: float = 320.0 # сила откидывания от врага
 @export var knockback_time: float = 0.2    # сколько длится откидывание (без управления)
+
+# --- Падение в пропасть ---
+@export var fall_limit: float = 800.0  # если упал ниже этой Y — возрождаемся
 
 # --- Внутренние таймеры/состояния ---
 var _coyote_timer: float = 0.0
@@ -49,6 +52,9 @@ var _spawn_position: Vector2 = Vector2.ZERO  # стартовая точка (е
 func _ready() -> void:
 	add_to_group("player")
 	_spawn_position = global_position
+	# Если загрузилось сохранение со скамейкой — появляемся у неё, а не на старте.
+	if GameState.has_respawn_point:
+		global_position = GameState.respawn_position
 	# Подписываемся на смерть: когда здоровье дойдёт до 0, GameState крикнет player_died.
 	GameState.player_died.connect(_on_player_died)
 
@@ -59,6 +65,7 @@ func _physics_process(delta: float) -> void:
 	_attack_cooldown_timer = maxf(_attack_cooldown_timer - delta, 0.0)
 	_invincible_timer = maxf(_invincible_timer - delta, 0.0)
 	_update_invincible_blink()
+	_check_fall()  # упал в пропасть -> возрождение
 
 	# Во время рывка обрабатываем только его.
 	if _is_dashing:
@@ -254,14 +261,25 @@ func _update_invincible_blink() -> void:
 		$Visual.modulate.a = 1.0
 
 
-func _on_player_died() -> void:
-	# Возрождаемся: у последней скамейки, либо на стартовой точке.
+func _respawn_at_savepoint() -> void:
+	# Переносим игрока к последней скамейке (или на старт) и сбрасываем состояние.
 	var target := GameState.respawn_position if GameState.has_respawn_point else _spawn_position
 	global_position = target
 	velocity = Vector2.ZERO
 	_knockback_timer = 0.0
 	_invincible_timer = invincible_time  # короткая защита после возрождения
+
+
+func _on_player_died() -> void:
+	# Смерть: возрождаемся и полностью лечимся.
+	_respawn_at_savepoint()
 	GameState.restore_full_health()
+
+
+func _check_fall() -> void:
+	# Упал в пропасть — просто возвращаемся к точке сохранения (без полного лечения).
+	if global_position.y > fall_limit:
+		_respawn_at_savepoint()
 
 
 ## Направление взгляда (1 вправо / -1 влево).
