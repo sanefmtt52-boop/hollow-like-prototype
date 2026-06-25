@@ -1,0 +1,22 @@
+[gd_scene load_steps=3 format=3 uid="uid://e1crawler0prototype"]
+
+[ext_resource type="Script" path="res://scenes/enemies/enemy_crawler.gd" id="1_crawler"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_crawler"]
+size = Vector2(36, 40)
+
+[node name="EnemyCrawler" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+script = ExtResource("1_crawler")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectangleShape2D_crawler")
+
+[node name="Polygon2D" type="Polygon2D" parent="."]
+color = Color(0.85, 0.3, 0.3, 1)
+polygon = PackedVector2Array(-18, -20, 18, -20, 18, 20, -18, 20)
+
+[node name="FloorCheck" type="RayCast2D" parent="."]
+position = Vector2(22, 0)
+target_position = Vector2(0, 34)
